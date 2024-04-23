@@ -9,10 +9,11 @@ from transformers import ViTForImageClassification
 import threading
 import numpy as np
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 载入本地模型
 model_str = "./model"  # 本地模型路径
-model = ViTForImageClassification.from_pretrained(model_str, num_labels=7)
+model = ViTForImageClassification.from_pretrained(model_str, num_labels=7).to(device)
 labels_list = ['sad', 'disgust', 'angry', 'neutral', 'fear', 'surprise', 'happy']
 
 
@@ -150,12 +151,12 @@ def transform_image(frame):
     return transform(image).unsqueeze(0)  # 添加批次维度
 
 def predict(frame):
-    tensor_image = transform_image(frame)
+    tensor_image = transform_image(frame).to(device)  # 确保输入数据在 GPU 上
     model.eval()  # 将模型设置为评估模式
     with torch.no_grad():  # 关闭梯度计算
         outputs = model(tensor_image)
         predictions = torch.nn.functional.softmax(outputs.logits, dim=-1)
-        return predictions.numpy().flatten()  # 返回概率数组
+        return predictions.cpu().numpy().flatten()  # 将结果从 GPU 移回 CPU 并返回概率数组
 
 def process_video(video_path, frame_rate, progress, running):
     cap = cv2.VideoCapture(video_path)
